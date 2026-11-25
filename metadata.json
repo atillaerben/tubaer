@@ -1,0 +1,6 @@
+{
+  "name": "Aile Katılımlı Matematik Atölyesi — Başvuru Sorgulama",
+  "description": "Aile katılımlı matematik atölyesi başvuru sonuçlarını telefon numarası ile sorgulama ve duyuru sayfası.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

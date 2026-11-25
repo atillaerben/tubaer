@@ -1,0 +1,229 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Pillar 1 / Global Safety Net: Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Primitive Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isBootstrapAdmin() {
+      return isVerified() && request.auth.token.email == 'atillaerben@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrapAdmin() || (
+        isVerified() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidPhoneHash(hash) {
+      return hash is string && hash.size() == 64 && hash.matches('^[a-f0-9]{64}$');
+    }
+
+    function isValidStatus(status) {
+      return status is string && status in ['approved', 'waitlist', 'pending', 'rejected'];
+    }
+
+    // --- Validation Blueprints (Aligned verbatim with firebase-blueprint.json) ---
+    function isValidWorkshopSettings(data) {
+      return data.keys().hasAll([
+          'title', 'subtitle', 'termLabel', 'workshopDate', 'sessionsSummary',
+          'location', 'ageGroup', 'announcementNote', 'contactEmail',
+          'contactPhone', 'resultsPublished', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'title', 'subtitle', 'termLabel', 'workshopDate', 'sessionsSummary',
+          'location', 'ageGroup', 'announcementNote', 'contactEmail',
+          'contactPhone', 'resultsPublished', 'updatedAt'
+        ])
+        && data.title is string && data.title.size() >= 2 && data.title.size() <= 120
+        && data.subtitle is string && data.subtitle.size() <= 160
+        && data.termLabel is string && data.termLabel.size() <= 60
+        && data.workshopDate is string && data.workshopDate.size() <= 80
+        && data.sessionsSummary is string && data.sessionsSummary.size() <= 120
+        && data.location is string && data.location.size() <= 160
+        && data.ageGroup is string && data.ageGroup.size() <= 80
+        && data.announcementNote is string && data.announcementNote.size() <= 600
+        && data.contactEmail is string && data.contactEmail.size() <= 120
+        && data.contactPhone is string && data.contactPhone.size() <= 40
+        && data.resultsPublished is bool
+        && data.updatedAt == request.time;
+    }
+
+    function isValidApplicationRecord(data, applicationId) {
+      return data.keys().hasAll([
+          'phoneHash', 'phoneNormalized', 'phoneDisplay', 'parentFullName',
+          'studentFullName', 'gradeLevel', 'status', 'waitlistOrder',
+          'sessionLabel', 'workshopDate', 'location', 'notes',
+          'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'phoneHash', 'phoneNormalized', 'phoneDisplay', 'parentFullName',
+          'studentFullName', 'gradeLevel', 'status', 'waitlistOrder',
+          'sessionLabel', 'workshopDate', 'location', 'notes',
+          'createdAt', 'updatedAt'
+        ])
+        && isValidPhoneHash(data.phoneHash)
+        && data.phoneHash == applicationId
+        && data.phoneNormalized is string
+        && data.phoneNormalized.size() >= 10 && data.phoneNormalized.size() <= 15
+        && data.phoneNormalized.matches('^[0-9]{10,15}$')
+        && data.phoneDisplay is string && data.phoneDisplay.size() >= 10 && data.phoneDisplay.size() <= 25
+        && data.parentFullName is string && data.parentFullName.size() >= 2 && data.parentFullName.size() <= 100
+        && data.studentFullName is string && data.studentFullName.size() >= 1 && data.studentFullName.size() <= 100
+        && data.gradeLevel is string && data.gradeLevel.size() <= 50
+        && isValidStatus(data.status)
+        && data.waitlistOrder is int && data.waitlistOrder >= 0 && data.waitlistOrder <= 999
+        && (data.status == 'waitlist' || data.waitlistOrder == 0)
+        && data.sessionLabel is string && data.sessionLabel.size() <= 120
+        && data.workshopDate is string && data.workshopDate.size() <= 80
+        && data.location is string && data.location.size() <= 160
+        && data.notes is string && data.notes.size() <= 500
+        && data.createdAt is timestamp
+        && data.updatedAt == request.time;
+    }
+
+    function isValidStatusLookup(data, phoneHash) {
+      return data.keys().hasAll([
+          'phoneHash', 'parentDisplayName', 'studentFirstName', 'gradeLevel',
+          'status', 'waitlistOrder', 'sessionLabel', 'workshopDate',
+          'location', 'notes', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'phoneHash', 'parentDisplayName', 'studentFirstName', 'gradeLevel',
+          'status', 'waitlistOrder', 'sessionLabel', 'workshopDate',
+          'location', 'notes', 'updatedAt'
+        ])
+        && isValidPhoneHash(data.phoneHash)
+        && data.phoneHash == phoneHash
+        && data.parentDisplayName is string && data.parentDisplayName.size() >= 1 && data.parentDisplayName.size() <= 80
+        && data.studentFirstName is string && data.studentFirstName.size() >= 1 && data.studentFirstName.size() <= 60
+        && data.gradeLevel is string && data.gradeLevel.size() <= 50
+        && isValidStatus(data.status)
+        && data.waitlistOrder is int && data.waitlistOrder >= 0 && data.waitlistOrder <= 999
+        && (data.status == 'waitlist' || data.waitlistOrder == 0)
+        && data.sessionLabel is string && data.sessionLabel.size() <= 120
+        && data.workshopDate is string && data.workshopDate.size() <= 80
+        && data.location is string && data.location.size() <= 160
+        && data.notes is string && data.notes.size() <= 500
+        && data.updatedAt == request.time;
+    }
+
+    // --- Collection: /settings/{settingId} ---
+    match /settings/{settingId} {
+      allow get: if isValidId(settingId) && settingId == 'workshop';
+      allow list: if false;
+      allow create: if isSignedIn()
+        && isValidId(settingId)
+        && settingId == 'workshop'
+        && isValidWorkshopSettings(incoming())
+        && isAdmin();
+      allow update: if isSignedIn()
+        && isValidId(settingId)
+        && settingId == 'workshop'
+        && isValidWorkshopSettings(incoming())
+        && (
+          isAdmin()
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'title', 'subtitle', 'termLabel', 'workshopDate', 'sessionsSummary',
+            'location', 'ageGroup', 'announcementNote', 'contactEmail',
+            'contactPhone', 'resultsPublished', 'updatedAt'
+          ])
+        );
+      allow delete: if false;
+    }
+
+    // --- Collection: /applications/{applicationId} (Admin-only PII Store) ---
+    match /applications/{applicationId} {
+      allow get: if isSignedIn() && isValidPhoneHash(applicationId) && isAdmin();
+      allow list: if isBootstrapAdmin();
+      allow create: if isSignedIn()
+        && isValidPhoneHash(applicationId)
+        && isValidApplicationRecord(incoming(), applicationId)
+        && incoming().createdAt == request.time
+        && isAdmin()
+        && existsAfter(/databases/$(database)/documents/statusLookups/$(applicationId))
+        && getAfter(/databases/$(database)/documents/statusLookups/$(applicationId)).data.status == incoming().status;
+      allow update: if isSignedIn()
+        && isValidPhoneHash(applicationId)
+        && isValidApplicationRecord(incoming(), applicationId)
+        && incoming().createdAt == existing().createdAt
+        && incoming().phoneHash == existing().phoneHash
+        && incoming().phoneNormalized == existing().phoneNormalized
+        && (
+          isAdmin()
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'phoneDisplay', 'parentFullName', 'studentFullName',
+            'gradeLevel', 'status', 'waitlistOrder', 'sessionLabel',
+            'workshopDate', 'location', 'notes', 'updatedAt'
+          ])
+        )
+        && existsAfter(/databases/$(database)/documents/statusLookups/$(applicationId))
+        && getAfter(/databases/$(database)/documents/statusLookups/$(applicationId)).data.status == incoming().status;
+      allow delete: if isSignedIn()
+        && isValidPhoneHash(applicationId)
+        && isAdmin()
+        && !existsAfter(/databases/$(database)/documents/statusLookups/$(applicationId));
+    }
+
+    // --- Collection: /statusLookups/{phoneHash} (PII-Isolated Public Lookup) ---
+    match /statusLookups/{phoneHash} {
+      allow get: if isValidPhoneHash(phoneHash);
+      allow list: if false;
+      allow create: if isSignedIn()
+        && isValidPhoneHash(phoneHash)
+        && isValidStatusLookup(incoming(), phoneHash)
+        && isAdmin()
+        && existsAfter(/databases/$(database)/documents/applications/$(phoneHash))
+        && getAfter(/databases/$(database)/documents/applications/$(phoneHash)).data.status == incoming().status;
+      allow update: if isSignedIn()
+        && isValidPhoneHash(phoneHash)
+        && isValidStatusLookup(incoming(), phoneHash)
+        && incoming().phoneHash == existing().phoneHash
+        && (
+          isAdmin()
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'parentDisplayName', 'studentFirstName', 'gradeLevel', 'status',
+            'waitlistOrder', 'sessionLabel', 'workshopDate', 'location',
+            'notes', 'updatedAt'
+          ])
+        )
+        && existsAfter(/databases/$(database)/documents/applications/$(phoneHash))
+        && getAfter(/databases/$(database)/documents/applications/$(phoneHash)).data.status == incoming().status;
+      allow delete: if isSignedIn()
+        && isValidPhoneHash(phoneHash)
+        && isAdmin()
+        && !existsAfter(/databases/$(database)/documents/applications/$(phoneHash));
+    }
+
+    // --- Collection: /admins/{uid} ---
+    match /admins/{uid} {
+      allow get: if isSignedIn() && isValidId(uid) && request.auth.uid == uid;
+      allow list: if false;
+      allow create, update, delete: if false;
+    }
+  }
+}

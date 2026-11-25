@@ -1,0 +1,323 @@
+{
+  "entities": {
+    "WorkshopSettings": {
+      "title": "WorkshopSettings",
+      "description": "Public announcement metadata and schedule details for the family mathematics workshop.",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 120,
+          "description": "Workshop display title"
+        },
+        "subtitle": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 160,
+          "description": "Short workshop summary subtitle"
+        },
+        "termLabel": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 60,
+          "description": "Term or edition label (e.g. 2026 Bahar Dönemi)"
+        },
+        "workshopDate": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 80,
+          "description": "Main workshop date string"
+        },
+        "sessionsSummary": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 120,
+          "description": "Overview of available sessions"
+        },
+        "location": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 160,
+          "description": "Venue name and address"
+        },
+        "ageGroup": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 80,
+          "description": "Target student grade or age group"
+        },
+        "announcementNote": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 600,
+          "description": "General organizer announcement shown to families"
+        },
+        "contactEmail": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 120,
+          "description": "Organizer contact email"
+        },
+        "contactPhone": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 40,
+          "description": "Organizer contact phone number"
+        },
+        "resultsPublished": {
+          "type": "boolean",
+          "description": "Indicates whether application results are published for lookup"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the last update"
+        }
+      },
+      "required": [
+        "title",
+        "subtitle",
+        "termLabel",
+        "workshopDate",
+        "sessionsSummary",
+        "location",
+        "ageGroup",
+        "announcementNote",
+        "contactEmail",
+        "contactPhone",
+        "resultsPublished",
+        "updatedAt"
+      ]
+    },
+    "ApplicationRecord": {
+      "title": "ApplicationRecord",
+      "description": "Admin-only private application record containing full parent and student details and raw phone number.",
+      "type": "object",
+      "properties": {
+        "phoneHash": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64,
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "SHA-256 hex digest of the normalized phone number"
+        },
+        "phoneNormalized": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 15,
+          "pattern": "^[0-9]{10,15}$",
+          "description": "Digits-only normalized phone number (e.g. 5321112233)"
+        },
+        "phoneDisplay": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 25,
+          "description": "Human-formatted Turkish phone number"
+        },
+        "parentFullName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100,
+          "description": "Full name of the parent/guardian"
+        },
+        "studentFullName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "Full name of the participating student"
+        },
+        "gradeLevel": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 50,
+          "description": "Student grade level or age"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["approved", "waitlist", "pending", "rejected"],
+          "description": "Current evaluation status of the application"
+        },
+        "waitlistOrder": {
+          "type": "integer",
+          "description": "Waitlist rank (0 if not waitlisted, 1-999 if waitlisted)"
+        },
+        "sessionLabel": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 120,
+          "description": "Assigned workshop session label"
+        },
+        "workshopDate": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 80,
+          "description": "Assigned workshop date"
+        },
+        "location": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 160,
+          "description": "Assigned workshop room or venue"
+        },
+        "notes": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 500,
+          "description": "Personal organizer note shown to the applicant"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Immutable server creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last-updated timestamp"
+        }
+      },
+      "required": [
+        "phoneHash",
+        "phoneNormalized",
+        "phoneDisplay",
+        "parentFullName",
+        "studentFullName",
+        "gradeLevel",
+        "status",
+        "waitlistOrder",
+        "sessionLabel",
+        "workshopDate",
+        "location",
+        "notes",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "StatusLookup": {
+      "title": "StatusLookup",
+      "description": "PII-isolated public status mirror keyed by SHA-256 hash of normalized phone number. Direct get-only, never listable.",
+      "type": "object",
+      "properties": {
+        "phoneHash": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64,
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "SHA-256 hex digest matching document ID"
+        },
+        "parentDisplayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "Masked parent name for privacy (e.g. Ayşe Y.)"
+        },
+        "studentFirstName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60,
+          "description": "Student first name or masked display name"
+        },
+        "gradeLevel": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 50,
+          "description": "Student grade level"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["approved", "waitlist", "pending", "rejected"],
+          "description": "Current evaluation status of the application"
+        },
+        "waitlistOrder": {
+          "type": "integer",
+          "description": "Waitlist rank (0 if not waitlisted, 1-999 if waitlisted)"
+        },
+        "sessionLabel": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 120,
+          "description": "Assigned workshop session"
+        },
+        "workshopDate": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 80,
+          "description": "Assigned workshop date"
+        },
+        "location": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 160,
+          "description": "Assigned workshop room or venue"
+        },
+        "notes": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 500,
+          "description": "Organizer note for this family"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last-updated timestamp"
+        }
+      },
+      "required": [
+        "phoneHash",
+        "parentDisplayName",
+        "studentFirstName",
+        "gradeLevel",
+        "status",
+        "waitlistOrder",
+        "sessionLabel",
+        "workshopDate",
+        "location",
+        "notes",
+        "updatedAt"
+      ]
+    },
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "Authorized workshop organizer account registry.",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 120,
+          "description": "Verified organizer email"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["admin"],
+          "description": "Administrative role"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp"
+        }
+      },
+      "required": ["email", "role", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/WorkshopSettings" },
+      "description": "Public workshop announcement settings (document ID: workshop)."
+    },
+    "/applications/{applicationId}": {
+      "schema": { "$ref": "#/entities/ApplicationRecord" },
+      "description": "Private admin-only applicant records keyed by phoneHash."
+    },
+    "/statusLookups/{phoneHash}": {
+      "schema": { "$ref": "#/entities/StatusLookup" },
+      "description": "PII-isolated public status lookup documents keyed by SHA-256 phoneHash."
+    },
+    "/admins/{uid}": {
+      "schema": { "$ref": "#/entities/AdminUser" },
+      "description": "Admin role documents keyed by Firebase Auth UID."
+    }
+  }
+}
